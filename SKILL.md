@@ -43,7 +43,7 @@ Pick the workflow type based on the nature of your search:
 
 ### Quick Start: Search First
 
-**Async (preferred)** -- create the task, then poll for results:
+Create the task, then poll for results:
 
 ```bash
 # Create a task (returns immediately with task ID and state "starting")
@@ -67,23 +67,7 @@ TASK_ID=$(pckle task create --workflow find_all --instruction "Find every docume
 pckle task get --id "$TASK_ID" --json
 ```
 
-**Sync fallback (`--wait`)** -- use only when the caller cannot poll for results:
-
-```bash
-# Blocks until the task completes (up to 15 min) and returns the final output
-pckle task create --instruction "What is the retry policy for failed webhooks?" --wait --json
-```
-
-### Choosing Between Async and `--wait`
-
-| Scenario | Use |
-|---|---|
-| Agent can run multiple commands and poll with `task get` | **Async** (create, then poll) |
-| Agent cannot poll or issue follow-up commands | `--wait` |
-| Scripting pipelines where you need the result inline | `--wait` |
-| Long-running tasks where you want to do other work while waiting | **Async** (create, then poll) |
-
-**Always use `--json` when calling from an agent** for structured, parseable output. Prefer the async pattern (create + poll) so the agent stays in control and can monitor progress, handle timeouts, or cancel tasks. Use `--wait` only when the agent has no ability to issue follow-up commands.
+**Always use `--json` when calling from an agent** for structured, parseable output.
 
 ## Global Flags
 
@@ -148,16 +132,12 @@ Tasks are execution instances that run within an agent. Each task takes a natura
 
 ```bash
 # Create a task (router auto-selects workflow, returns immediately with task ID)
-pckle task create --instruction "Find all documents about pricing" --json
+TASK_ID=$(pckle task create --instruction "Find all documents about pricing" --json | jq -r '.id')
+pckle task get --id "$TASK_ID" --json
 
 # Specify workflow type explicitly
-pckle task create --workflow find_all --instruction "Search for pricing docs" --json
-
-# Then poll for results using the returned task ID
-pckle task get --id <TASK_ID> --json
-
-# Create and wait for completion (up to 15 min) — use only when polling is not possible
-pckle task create --instruction "Analyze the dataset" --wait --json
+TASK_ID=$(pckle task create --workflow find_all --instruction "Search for pricing docs" --json | jq -r '.id')
+pckle task get --id "$TASK_ID" --json
 
 # Set timeout
 pckle task create --instruction "Process records" --timeout 300 --json
@@ -257,7 +237,7 @@ pckle stats --json
 
 ## Common Patterns
 
-### Search then act (async -- preferred)
+### Search then act
 
 ```bash
 # 1. Create the task (returns immediately)
@@ -274,15 +254,6 @@ if [ "$STATE" != "completed" ] && [ "$STATE" != "failed" ] && [ "$STATE" != "can
 fi
 
 # 4. Use the result
-echo "$RESULT" | jq -r '.output'
-```
-
-### Search then act (sync fallback)
-
-Use this only when the caller cannot poll:
-
-```bash
-RESULT=$(pckle task create --workflow find_one --instruction "What is the auth token format?" --wait --json)
 echo "$RESULT" | jq -r '.output'
 ```
 
